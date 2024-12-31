@@ -1,0 +1,69 @@
+-- ShiftLock Toggle Script
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local GuiService = game:GetService("GuiService")
+local Player = game.Players.LocalPlayer
+local UserGameSettings = UserSettings():GetService("UserGameSettings")
+
+local shiftLockEnabled = false
+local SHIFT_LOCK_ICON_ON = 'rbxasset://textures/ui/mouseLock_on.png'
+local SHIFT_LOCK_ICON_OFF = 'rbxasset://textures/ui/mouseLock_off.png'
+
+-- Create the ShiftLock Button
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = Player.PlayerGui
+screenGui.Name = "ShiftLockGui"
+
+local shiftLockButton = Instance.new("ImageButton")
+shiftLockButton.Size = UDim2.new(0.1, 0, 0.1, 0)
+shiftLockButton.Position = UDim2.new(0.5, 250, 0.95, -750) -- bottom middle of the screen
+shiftLockButton.AnchorPoint = Vector2.new(0.5, 0.5)
+shiftLockButton.BackgroundTransparency = 1
+shiftLockButton.Image = SHIFT_LOCK_ICON_OFF
+shiftLockButton.Parent = screenGui
+
+-- Store the default camera settings
+local defaultRotationType = UserGameSettings.RotationType
+
+-- Toggle shiftlock function
+local function toggleShiftLock()
+    shiftLockEnabled = not shiftLockEnabled
+    shiftLockButton.Image = shiftLockEnabled and SHIFT_LOCK_ICON_ON or SHIFT_LOCK_ICON_OFF
+
+    if shiftLockEnabled then
+        -- Enable shiftlock (camera relative rotation)
+        UserGameSettings.RotationType = Enum.RotationType.CameraRelative
+    else
+        -- Disable shiftlock (reset to default camera rotation)
+        UserGameSettings.RotationType = defaultRotationType
+    end
+end
+
+-- Connect button click to toggle shiftlock
+shiftLockButton.Activated:Connect(toggleShiftLock)
+
+-- Optional: Support for keyboard keybinding (Shift key)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+        toggleShiftLock()
+    end
+end)
+
+-- Update the camera based on shiftlock status
+local function onCameraUpdate()
+    local Camera = workspace.CurrentCamera
+    if Camera then
+        if shiftLockEnabled then
+            -- Apply offset for shiftlock (camera relative)
+            local offset = CFrame.new(1.75, 0, 0)
+            if (Camera.Focus.Position - Camera.CFrame.Position).Magnitude >= 0.99 then
+                Camera.CFrame = Camera.CFrame * offset
+                Camera.Focus = CFrame.fromMatrix(Camera.Focus.Position, Camera.CFrame.RightVector, Camera.CFrame.UpVector) * offset
+            end
+        end
+    end
+end
+
+-- Bind the camera update to the render step
+RunService:BindToRenderStep("ShiftLockUpdate", Enum.RenderPriority.Camera.Value + 1, onCameraUpdate)
